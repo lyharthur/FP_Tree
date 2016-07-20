@@ -2,14 +2,16 @@
 import tree_builder
 import tree_miner
 import csv
-with open('20000-out1.csv', newline='') as csvfile:
+
+
+with open('../Dataset/D1kT10N500.txt', newline='') as csvfile:
     spamreader = csv.reader(csvfile ,delimiter = ',',quotechar = '|')
     data = []
     for row in spamreader:
         row = [num.replace(' ', '') for num in row]
         data.append(row)
-
 #print(data)
+
 
 routines = [    
            ['Cola','Egg','Ham'],
@@ -19,7 +21,7 @@ routines = [
         ]                                  #事务数据集
 
 
-min_sup = 100                             #最小支持度计数
+min_sup = 1000 * 1/100                             #最小支持度计数
 headerTable = {}        #头结点表，用来存放各个项的索引
 
 treeBuilder = tree_builder.Tree_builder(routines=data, min_sup=min_sup, headerTable=headerTable)    #建造FP_Tree
