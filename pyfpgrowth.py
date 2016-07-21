@@ -77,7 +77,7 @@ class FPTree(object):
         for key in list(items.keys()):
             if items[key] < threshold:
                 del items[key]
-        #print(type(items))
+        
         return items
 
     @staticmethod
@@ -242,6 +242,8 @@ class FPTree(object):
                     patterns[pattern] = subtree_patterns[pattern]
 
         return patterns
+
+
 
 
 def find_frequent_patterns(transactions, support_threshold):
