@@ -55,6 +55,7 @@ class FPTree(object):
         Initialize the tree.
         """
         self.frequent = self.find_frequent_items(transactions, threshold)
+        print('A')
         self.headers = self.build_header_table(self.frequent)
         self.root = self.build_fptree(
             transactions, root_value,
@@ -252,6 +253,7 @@ def find_frequent_patterns(transactions, support_threshold):
     over the specified support threshold.
     """
     tree = FPTree(transactions, support_threshold, None, None)
+    print('B')
     return tree.mine_patterns(support_threshold)
 
 

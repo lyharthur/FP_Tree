@@ -19,5 +19,6 @@ routines = [
            ['Diaper','Beer']
         ]                                  #事务数据集
 
+
 for itemset in find_frequent_patterns(routines, 1):
     print(itemset)
