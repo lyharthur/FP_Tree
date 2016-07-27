@@ -10,11 +10,7 @@ Basic usage of the module is very simple:
 from collections import defaultdict, namedtuple
 
 
-__author__ = 'Eric Naeseth <eric@naeseth.com>'
-__copyright__ = 'Copyright © 2009 Eric Naeseth'
-__license__ = 'MIT License'
-
-def find_frequent_itemsets(transactions, minimum_support, include_support=False):
+def find_frequent_itemsets(transactions, minimum_support, include_support=True):
     """
     Find frequent itemsets in the given transactions using FP-growth. This
     function returns a generator instead of an eagerly-populated list of items.
@@ -27,57 +23,93 @@ def find_frequent_itemsets(transactions, minimum_support, include_support=False)
     just the itemsets.
     """
     items = defaultdict(lambda: 0) # mapping from items to their supports
-    processed_transactions = []
+    transactions_done = []
 
-    # Load the passed-in transactions and count the support that individual
-    # items have.
+    # Load the passed-in transactions and count the support that individual items have.
     for transaction in transactions:
-        processed = []
+        done = []
         for item in transaction:
             items[item] += 1
-            processed.append(item)
-        processed_transactions.append(processed)
+            done.append(item)
+        transactions_done.append(done)
 
     # Remove infrequent items from the item support dictionary.
     items = dict((item, support) for item, support in list(items.items())
         if support >= minimum_support)
 
-    # Build our FP-tree. Before any transactions can be added to the tree, they
-    # must be stripped of infrequent items and their surviving items must be
-    # sorted in decreasing order of frequency.
-    def f2(v):
-        # I believe the correct sorting is reverse by frequency, but the items must always appear in the same order
+
+    # Build our FP-tree.
+    def freq(v):
         return items[v],v
-    def clean_transaction(transaction):
+    def transaction_sort(transaction): #1. sorted transaction with the same order
         transaction = [v for v in transaction if v in items]
-        #original sort will caused a bug
-        #when the transactions are:{25,48;48,25} and mini-support is 2;it could not find (25,48)
-        # The issue is actually that it must be sorted / in the same order...
-        transaction.sort(key=lambda v: f2(v), reverse=True)
+        transaction.sort(key=lambda v: freq(v), reverse=True)
         return transaction
 
-    master = FPTree()
-    for transaction in map(clean_transaction, processed_transactions):
-        master.add(transaction)
+    origin_tree = FPTree()
+    for transaction in map(transaction_sort, transactions_done):#2. build tree
+        origin_tree.add(transaction)
+    #print(origin_tree.inspect())
+    
+
 
     def find_with_suffix(tree, suffix):
         for item, nodes in list(tree.items()):
-            support = sum(n.count for n in nodes)
-            if support >= minimum_support and item not in suffix:
-                # New winner!
+            support = sum(n.count for n in nodes) #sum the n.count for the node
+            if support >= minimum_support and item not in suffix: 
                 found_set = [item] + suffix
-                yield (found_set, support) if include_support else found_set
-
-                # Build a conditional tree and recursively search for frequent
-                # itemsets within it.
-                cond_tree = conditional_tree_from_paths(tree.prefix_paths(item),
-                    minimum_support)
-                for s in find_with_suffix(cond_tree, found_set):
-                    yield s # pass along the good news to our caller
+                yield (found_set, support) if include_support else found_set #2 output mode
+                
+                # Build a conditional tree  
+                cond_tree = conditional_tree_from_paths(tree.prefix_paths(item), minimum_support)
+                #Recursively search for frequent itemsets within it.
+                for itemset in find_with_suffix(cond_tree, found_set):
+                    yield itemset 
 
     # Search for frequent itemsets, and yield the results we find.
-    for itemset in find_with_suffix(master, []):
+    for itemset in find_with_suffix(origin_tree, []):
         yield itemset
+        
+def conditional_tree_from_paths(paths, minimum_support):
+    """Builds a conditional FP-tree from the given prefix paths."""
+    tree = FPTree()
+    condition_item = None
+    items = set()
+
+    # Import the nodes in the paths into the new tree. Only the counts of the
+    # leaf notes matter; the remaining counts will be reconstructed from the
+    # leaf counts.
+    for path in paths:
+        if condition_item is None:
+            condition_item = path[-1].item #last item is our target
+
+        point = tree.root
+        for node in path:
+            next_point = point.search(node.item)
+            if not next_point:
+                # Add a new node to the tree.
+                items.add(node.item)
+                count = node.count if node.item == condition_item else 0
+                next_point = FPNode(tree, node.item, count)
+                point.add(next_point)
+                tree._update_headtable(next_point)
+            point = next_point
+    #print(tree.inspect())
+
+    assert condition_item is not None
+
+    # Calculate the counts of the non-leaf nodes.
+    for path in tree.prefix_paths(condition_item):
+        count = path[-1].count
+        for node in reversed(path[:-1]):
+            node._count += count
+
+    for node in tree.nodes(condition_item):
+        if node.parent is not None: # the node might already be an single node
+            node.parent.remove(node)
+
+    return tree
+
 
 class FPTree(object):
     """
@@ -92,9 +124,7 @@ class FPTree(object):
         # The root node of the tree.
         self._root = FPNode(self, None, None)
 
-        # A dictionary mapping items to the head and tail of a path of
-        # "neighbors" that will hit every node containing that item.
-        self._routes = {}
+        self.headtable = {}
 
     @property
     def root(self):
@@ -122,21 +152,21 @@ class FPTree(object):
 
                 # Update the route of nodes that contain this item to include
                 # our new node.
-                self._update_route(next_point)
+                self._update_headtable(next_point)
 
             point = next_point
 
-    def _update_route(self, point):
+    def _update_headtable(self, point):
         """Add the given node to the route through all nodes for its item."""
         assert self is point.tree
 
         try:
-            route = self._routes[point.item]
-            route[1].neighbor = point # route[1] is the tail
-            self._routes[point.item] = self.Route(route[0], point)
+            HT = self.headtable[point.item]
+            HT[1].neighbor = point # route[1] is the tail
+            self.headtable[point.item] = self.Route(HT[0], point)
         except KeyError:
             # First node for this item; start a new route.
-            self._routes[point.item] = self.Route(point, point)
+            self.headtable[point.item] = self.Route(point, point)
 
     def items(self):
         """
@@ -144,7 +174,7 @@ class FPTree(object):
         element of the tuple is the item itself, and the second element is a
         generator that will yield the nodes in the tree that belong to the item.
         """
-        for item in list(self._routes.keys()):
+        for item in list(self.headtable.keys()):
             yield (item, self.nodes(item))
 
     def nodes(self, item):
@@ -153,7 +183,7 @@ class FPTree(object):
         """
 
         try:
-            node = self._routes[item][0]
+            node = self.headtable[item][0]
         except KeyError:
             return
 
@@ -171,7 +201,6 @@ class FPTree(object):
                 node = node.parent
             path.reverse()
             return path
-
         return (collect_path(node) for node in self.nodes(item))
 
     def inspect(self):
@@ -188,66 +217,21 @@ class FPTree(object):
     def _removed(self, node):
         """Called when `node` is removed from the tree; performs cleanup."""
 
-        head, tail = self._routes[node.item]
+        head, tail = self.headtable[node.item]
         if node is head:
             if node is tail or not node.neighbor:
                 # It was the sole node.
-                del self._routes[node.item]
+                del self.headtable[node.item]
             else:
-                self._routes[node.item] = self.Route(node.neighbor, tail)
+                self.headtable[node.item] = self.Route(node.neighbor, tail)
         else:
             for n in self.nodes(node.item):
                 if n.neighbor is node:
                     n.neighbor = node.neighbor # skip over
                     if node is tail:
-                        self._routes[node.item] = self.Route(head, n)
+                        self.headtable[node.item] = self.Route(head, n)
                     break
-
-def conditional_tree_from_paths(paths, minimum_support):
-    """Builds a conditional FP-tree from the given prefix paths."""
-    tree = FPTree()
-    condition_item = None
-    items = set()
-
-    # Import the nodes in the paths into the new tree. Only the counts of the
-    # leaf notes matter; the remaining counts will be reconstructed from the
-    # leaf counts.
-    for path in paths:
-        if condition_item is None:
-            condition_item = path[-1].item
-
-        point = tree.root
-        for node in path:
-            next_point = point.search(node.item)
-            if not next_point:
-                # Add a new node to the tree.
-                items.add(node.item)
-                count = node.count if node.item == condition_item else 0
-                next_point = FPNode(tree, node.item, count)
-                point.add(next_point)
-                tree._update_route(next_point)
-            point = next_point
-
-    assert condition_item is not None
-
-    # Calculate the counts of the non-leaf nodes.
-    for path in tree.prefix_paths(condition_item):
-        count = path[-1].count
-        for node in reversed(path[:-1]):
-            node._count += count
-
-    #this fraction is wrong，it may caused a bug
-    # when the transactions are: raw = '25,52,48,274;71;71,274,33;52;25,52,48;274,71,33'
-    #it gives wrong answer ([25,48],3) , the support of [25,48] actually is 2
-
-    # Finally, remove the nodes corresponding to the item for which this
-    # conditional tree was generated.
-    for node in tree.nodes(condition_item):
-        if node.parent is not None: # the node might already be an orphan
-            node.parent.remove(node)
-
-    return tree
-
+                
 class FPNode(object):
     """A node in an FP tree."""
 
@@ -379,4 +363,6 @@ class FPNode(object):
         if self.root:
             return "<%s (root)>" % type(self).__name__
         return "<%s %r (%r)>" % (type(self).__name__, self.item, self.count)
+
+
 
