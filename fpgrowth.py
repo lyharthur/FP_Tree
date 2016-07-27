@@ -8,7 +8,7 @@ Basic usage of the module is very simple:
 """
 
 from collections import defaultdict, namedtuple
-
+import itertools
 
 def find_frequent_itemsets(transactions, minimum_support, include_support=True):
 
@@ -389,4 +389,4 @@ def generate_association_rules(patterns, confidence_threshold):
                     if confidence >= confidence_threshold:
                         rules[antecedent] = (consequent, confidence)
 
-return rules
+    return rules
