@@ -1,24 +1,22 @@
 from fpgrowth import find_frequent_itemsets ,generate_association_rules
-from pyfpgrowth import find_frequent_patterns ,generate_association_rules
 
 import csv
 import time
 
-with open('Dataset/D100kT10N1k.txt', newline='') as csvfile:
+with open('Dataset/D1kT10N500.txt', newline='') as csvfile:
     spamreader = csv.reader(csvfile ,delimiter = ',',quotechar = '|')
     data = []
     for row in spamreader:
         row = [num.replace(' ', '') for num in row]
         data.append(row)
-min_sup = 1000 * 1/100
+min_sup = 1000 * 0.1/100
 
 routines = [    
            ['Cola','Egg','Ham'],
            ['Cola','Diaper','Beer'],
            ['Cola','Beer','Diaper','Ham'],
            ['Diaper','Beer']
-        ]                                  #事务数据集
-
+        ]
 
 
 f = open('itemset.txt', 'w')
@@ -26,7 +24,7 @@ f = open('itemset.txt', 'w')
 start = time.time()
 #find_frequent_itemsets(data, 2)
 
-for itemset in find_frequent_itemsets(data, 100):
+for itemset in find_frequent_itemsets(data, min_sup):
     f.write(str(itemset)+'\n')
 f.close()
 
