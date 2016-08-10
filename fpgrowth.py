@@ -5,19 +5,21 @@ import csv
 import time
 import sys
 
-def find_frequent_itemsets(transactions, minimum_support, include_support=True):
+def find_frequent_itemsets(transactions, minimum_support_rate, include_support=True):
 
     items = defaultdict(lambda: 0) # items ,supports
     transactions_done = []
+    trans_num = 0
 
     # Load transactions & count the support
     for transaction in transactions:
         done = []
+        trans_num += 1
         for item in transaction:
             items[item] += 1
             done.append(item)
         transactions_done.append(done)
-
+    minimum_support = trans_num * minimum_support_rate
     # Remove items if < min support .
     items = dict((item, support) for item, support in list(items.items())
         if support >= minimum_support)
@@ -26,7 +28,7 @@ def find_frequent_itemsets(transactions, minimum_support, include_support=True):
     # Build FP-tree.
     def freq(v):
         return items[v],v
-    def transaction_sort(transaction): #sort transaction with the same order
+    def transaction_sort(transaction): #sort transaction by minimum_support
         transaction = [v for v in transaction if v in items]
         transaction.sort(key=lambda v: freq(v), reverse=True)
         return transaction
@@ -123,7 +125,7 @@ if __name__ == '__main__' :
         for row in spamreader:
             row = [num.replace(' ', '') for num in row]
             data.append(row)
-    min_sup = 1000 * 0.5/100
+    min_sup_rate = 0.5/100
 
     routines = [
             ['Cola','Egg','Ham'],
@@ -138,7 +140,7 @@ if __name__ == '__main__' :
     start = time.time()
     #find_frequent_itemsets(data, 2)
 
-    for itemset in find_frequent_itemsets(data, min_sup):
+    for itemset in find_frequent_itemsets(data, min_sup_rate):
         f.write(str(itemset)+'\n')
     f.close()
 
