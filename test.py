@@ -1,52 +1,36 @@
-from fpgrowth import find_frequent_itemsets ,generate_association_rules
-
+from fp_growth import find_frequent_itemsets
 import csv
 import time
 
-with open('Dataset/D1kT10N500.txt', newline='') as csvfile:
+start = time.time()
+
+with open('Dataset\D100kT10N1k.txt', newline='') as csvfile:
     spamreader = csv.reader(csvfile ,delimiter = ',',quotechar = '|')
     data = []
     for row in spamreader:
         row = [num.replace(' ', '') for num in row]
         data.append(row)
-min_sup = 1000 * 0.1/100
+
+minimum_support_rate = 0.1/100
+
 
 routines = [    
-           ['Cola','Egg','Ham'],
+           ['Cola','Egg','Ham','Bread'],
            ['Cola','Diaper','Beer'],
            ['Cola','Beer','Diaper','Ham'],
            ['Diaper','Beer']
-        ]
+        ]                               
 
+f = open('output.txt','w')
 
-f = open('itemset.txt', 'w')
-
-start = time.time()
-#find_frequent_itemsets(data, 2)
-
-for itemset in find_frequent_itemsets(data, min_sup):
-    f.write(str(itemset)+'\n')
+#print(len(list(find_frequent_itemsets(data, minimum_support_rate))))
+#print(sum(1 for x in find_frequent_itemsets(routines, min_sup)))
+for itemset in find_frequent_itemsets(data, minimum_support_rate):
+    f.write(str(itemset)+'\n'+'12')
+    #print(itemset)
 f.close()
-
-patterns={}
-with open('itemset.txt') as f:
-    for line in f:
-        line = line.replace('(','')
-        line = line.replace(')','')
-        line = line.replace('[','')
-        line = line.replace(' ','')
-
-        (key, val) = line.split(']',1)
-        val = val.replace('\n','')
-        val = val.replace(',','')
-        key = key.replace('\'','')
-        s = tuple(key.split(','))
-        patterns[s] = int(val)
-#print(patterns)
-
-f = open('rules.txt', 'w')
-f.write(str(generate_association_rules(patterns,0.4)).replace(', (','\n('))
 
 end = time.time()
 elapsed = end - start
-print("Time taken: ", elapsed, "seconds.")
+print( "Time taken: ", elapsed, "seconds.")
+
