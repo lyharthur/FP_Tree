@@ -125,7 +125,8 @@ if __name__ == '__main__' :
         for row in spamreader:
             row = [num.replace(' ', '') for num in row]
             data.append(row)
-    min_sup_rate = 0.5/100
+    
+    min_sup_rate = float(sys.argv[1])/100
 
     routines = [
             ['Cola','Egg','Ham'],
@@ -139,11 +140,13 @@ if __name__ == '__main__' :
 
     start = time.time()
     #find_frequent_itemsets(data, 2)
-
+    c = 0
     for itemset in find_frequent_itemsets(data, min_sup_rate):
         f.write(str(itemset)+'\n')
+        c += 1
     f.close()
-
+    print('minimum_support_rate : ' + str(minimum_support_rate))
+    print('Total itemset num : '+ str(c))
     patterns={}
     with open('itemset.txt') as f:
         for line in f:
