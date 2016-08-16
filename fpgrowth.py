@@ -145,7 +145,7 @@ if __name__ == '__main__' :
         f.write(str(itemset)+'\n')
         c += 1
     f.close()
-    print('minimum_support_rate : ' + str(minimum_support_rate))
+    print('minimum_support_rate : ' + str(min_sup_rate))
     print('Total itemset num : '+ str(c))
     patterns={}
     with open('itemset.txt') as f:
